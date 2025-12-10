@@ -35,6 +35,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             String actualToken = header.substring(7);
+            if ((!jwtService.isAccessToken(actualToken)) == false) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             try {
                 Jws<Claims> claimsJws = jwtService.parseToken(actualToken);
                 Claims body = claimsJws.getBody();
@@ -42,6 +46,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UUID uuid = UUIDHelper.generateUUID(userId);
                 userRepository.findById(uuid)
                         .ifPresent(user ->{
+
+
+                            if ((!user.isEnabled())){
+                                try {
+                                    filterChain.doFilter(request, response);
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                } catch (ServletException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                return;
+                            }
+
+
                       List<SimpleGrantedAuthority> authorities =   user.getRoles() == null ? List.of() :
                                     user.getRoles().stream()
                                             .map(role -> new SimpleGrantedAuthority(role.getName())).toList();
@@ -59,7 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            filterChain.doFilter(request, response);
+           // filterChain.doFilter(request, response);
         }
     }
 }
