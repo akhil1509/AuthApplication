@@ -47,25 +47,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 userRepository.findById(uuid)
                         .ifPresent(user ->{
 
+// check if user is enabled
+                    if ((user.isEnabled())) {
+                        List<SimpleGrantedAuthority> authorities =   user.getRoles() == null ? List.of() :
+                                user.getRoles().stream()
+                                        .map(role -> new SimpleGrantedAuthority(role.getName())).toList();
+                        UsernamePasswordAuthenticationToken  authenticationToken = new UsernamePasswordAuthenticationToken(user.getEmail(), null, authorities);
+                        authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                            if ((!user.isEnabled())){
-                                try {
-                                    filterChain.doFilter(request, response);
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                } catch (ServletException e) {
-                                    throw new RuntimeException(e);
-                                }
-                                return;
-                            }
-
-
-                      List<SimpleGrantedAuthority> authorities =   user.getRoles() == null ? List.of() :
-                                    user.getRoles().stream()
-                                            .map(role -> new SimpleGrantedAuthority(role.getName())).toList();
-                            UsernamePasswordAuthenticationToken  authenticationToken = new UsernamePasswordAuthenticationToken(user.getEmail(), null, authorities);
-                            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        if ((SecurityContextHolder.getContext().getAuthentication() == null)) {
                             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                        }
+                    }
+
                         });
 
             } catch (ExpiredJwtException e) {
@@ -77,7 +71,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-           // filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response);
         }
     }
 }
